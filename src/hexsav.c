@@ -20,42 +20,58 @@ int ishexstream(char *hexstr);
 int writehexstr(int fd, char *hexstr);  
 
 int main(int argc, char **argv){
-    int fd;             // filedescriptor
-    char *fpath;        // filepath
-    char *hexstr;
+    int fd;            		// filedescriptor
+    char *fpath = NULL;        	// filepath
+    char *hexstr = NULL;
 
-    //printf("%d, %s\n", argc, argv[1]);
 
     if(argc == 1)
         usage(argv[0]);
-    else if(strcmp(argv[1], "-f") == 0 && argc < 4)
-        usage(argv[0]);
-    else if(strcmp(argv[1], "-f") != 0 && argc >= 3)
-        usage(argv[0]);
-    
 
-    // if alternate filepath is specified load this path
-    if(strcmp(argv[1], "-f") == 0){
-        // allocate memory
-        fpath = ec_malloc(strlen(argv[3]));
-        strcpy(fpath, argv[2]);
-        hexstr = argv[3];
+    // check given arguments
+
+    for(int i = 1; i < argc; ++i){
+	    if(strcmp(argv[i], "-f") == 0){
+		    if(i + 1 == argc)
+			    fatal("in main() while checking -f argument. No filepath given");
+			    
+		    // allocate memory if a path is specified
+		    fpath = ec_malloc(strlen(argv[i+1]));
+		    strcpy(fpath, argv[i+1]);
+		    i+=1;		// skip the filepath argument else it would be evaluated twice					
+		    if(i >= argc)
+			    break;
+	    }
+	    // if no argument was found we have to assume the argument is the hexstream
+	    else{
+		    if(ishexstream(argv[i]) == -1){
+			    fprintf(stderr, "[Fail] Input stream %s is neither a hexstream nor a valid option.\n", argv[i]);
+			    exit(EXIT_FAILURE);
+		    }
+		    else if(hexstr != NULL){
+			    fprintf(stderr, "[Fail] multiple hexstreams given... just pass one.\n");
+			    exit(EXIT_FAILURE);
+		    }
+		    // if it could be the hexstream than take it as such
+		    else{
+			    hexstr = ec_malloc(strlen(argv[i]));
+			    strcpy(hexstr, argv[i]);
+		    }
+	    }
+    }
+
+    // check that a hexstream was specified
+    if(hexstr == NULL){
+	    fprintf(stderr, "[Fail] no hexstream specified.\n");
+	    exit(EXIT_FAILURE);
     }   
-    // or simply use the standard path
-    else{
+
+    // use the standard path if no file option was found
+    if(fpath == NULL){
         // allocate memory
         fpath = ec_malloc(strlen(STD_PATH));
         strcpy(fpath, STD_PATH);
-        hexstr = argv[1];
-    }
-
-    //check if specified hexstream is a real hexstream
-
-    if(ishexstream(hexstr) == -1){
-        printf("[Fail] Input stream %s isn't a hexstream.\n", hexstr);
-        free(fpath);
-        exit(EXIT_FAILURE);
-    }
+    } 
 
     // open file
     fd = open(fpath, O_WRONLY | O_TRUNC | O_CREAT, S_IRUSR | S_IWUSR);
